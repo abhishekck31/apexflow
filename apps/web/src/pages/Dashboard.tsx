@@ -3,8 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
     Search, AlertTriangle, Package, Database,
-    LogOut, LayoutDashboard, Settings, Activity
+    LogOut, LayoutDashboard, Settings, Activity, PackagePlus
 } from 'lucide-react';
+import SidebarLink from '../components/SidebarLink';
+import StatCard from '../components/StatCard';
+import AddAssetModal from '../components/AddAssetModal';
+
+// API Configuration for Production
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 interface InventoryItem {
     id: string;
@@ -18,16 +24,19 @@ export default function Dashboard() {
     const navigate = useNavigate();
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
+    const [isModalOpen, setIsModalOpen] = useState(false); // Modal State
+
+    // Professional Data Fetching
+    const fetchInventory = async () => {
+        try {
+            const res = await axios.get(`${API_URL}/api/inventory`);
+            setInventory(res.data);
+        } catch (err) {
+            console.error("Database Connection Error:", err);
+        }
+    };
 
     useEffect(() => {
-        const fetchInventory = async () => {
-            try {
-                const res = await axios.get('http://localhost:5000/api/inventory');
-                setInventory(res.data);
-            } catch (err) {
-                console.error("Database Connection Error:", err);
-            }
-        };
         fetchInventory();
     }, []);
 
@@ -46,6 +55,13 @@ export default function Dashboard() {
 
     return (
         <div className="flex h-screen bg-slate-950 text-slate-50 font-sans selection:bg-blue-500/30">
+            {/* 1. Integrated Add Asset Modal */}
+            <AddAssetModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onSuccess={fetchInventory}
+            />
+
             {/* Sidebar */}
             <aside className="w-64 bg-slate-900/50 border-r border-slate-800 p-6 flex flex-col backdrop-blur-xl">
                 <div className="flex items-center gap-3 mb-10 px-2">
@@ -81,6 +97,15 @@ export default function Dashboard() {
                             <p className="text-slate-400 text-sm font-medium uppercase tracking-widest">PostgreSQL Cluster: Synced</p>
                         </div>
                     </div>
+
+                    {/* 2. Primary Action: Register Asset */}
+                    <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+                    >
+                        <PackagePlus size={18} />
+                        <span className="text-sm">Register Asset</span>
+                    </button>
                 </header>
 
                 {/* Analytics Grid */}
@@ -115,7 +140,7 @@ export default function Dashboard() {
                         </thead>
                         <tbody className="divide-y divide-slate-800/50">
                             {filteredItems.map(item => (
-                                <tr key={item.id} className={`group transition-all hover:bg-blue-500/[0.03] ${item.quantity < 5 ? 'bg-red-500/[0.02]' : ''}`}>
+                                <tr key={item.id} className={`group transition-all hover:bg-blue-500/[0.03] ${item.quantity < 5 ? 'bg-red-500/5' : ''}`}>
                                     <td className="px-8 py-5 font-mono text-blue-400 text-sm tracking-tighter">{item.sku}</td>
                                     <td className="px-8 py-5 font-bold text-slate-200">
                                         {item.name}
@@ -126,8 +151,8 @@ export default function Dashboard() {
                                     </td>
                                     <td className="px-8 py-5 text-right">
                                         <span className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tighter border ${item.quantity < 5
-                                                ? 'bg-red-500/10 text-red-500 border-red-500/20'
-                                                : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                                            ? 'bg-red-500/10 text-red-500 border-red-500/20'
+                                            : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                                             }`}>
                                             {item.quantity < 5 ? 'Reorder Immediate' : 'Operational'}
                                         </span>
@@ -144,31 +169,6 @@ export default function Dashboard() {
                     )}
                 </div>
             </main>
-        </div>
-    );
-}
-
-function SidebarLink({ icon, label, active = false }: { icon: any, label: string, active?: boolean }) {
-    return (
-        <div className={`flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all duration-200 group ${active ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:bg-slate-800 hover:text-slate-200'
-            }`}>
-            {icon}
-            <span className="text-sm font-semibold">{label}</span>
-        </div>
-    );
-}
-
-function StatCard({ title, value, icon, highlight = false }: { title: string, value: any, icon: any, highlight?: boolean }) {
-    return (
-        <div className={`p-8 rounded-3xl border transition-all duration-500 group relative overflow-hidden ${highlight
-                ? 'bg-red-900/10 border-red-500/30 shadow-[0_0_40px_rgba(239,68,68,0.05)]'
-                : 'bg-slate-900/50 border-slate-800 hover:border-slate-700 backdrop-blur-sm'
-            }`}>
-            <div className="flex justify-between items-start mb-6">
-                <span className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">{title}</span>
-                <div className="p-3 bg-slate-800/80 rounded-2xl group-hover:scale-110 transition-transform duration-300">{icon}</div>
-            </div>
-            <p className="text-5xl font-black tracking-tighter tabular-nums">{value}</p>
         </div>
     );
 }
