@@ -1,10 +1,11 @@
 {
-  "name": "apexflow",
+  "name": "apexflow-monorepo",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build:server": "npm install --prefix apps/server && npm run build --prefix apps/server",
+    "install:server": "npm install --prefix apps/server",
+    "build:server": "npm run install:server && npm run build --prefix apps/server",
     "start:server": "node apps/server/dist/index.js"
   },
   "keywords": [],
