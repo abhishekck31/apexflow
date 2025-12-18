@@ -1,0 +1,174 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import {
+    Search, AlertTriangle, Package, Database,
+    LogOut, LayoutDashboard, Settings, Activity
+} from 'lucide-react';
+
+interface InventoryItem {
+    id: string;
+    sku: string;
+    name: string;
+    quantity: number;
+    status: string;
+}
+
+export default function Dashboard() {
+    const navigate = useNavigate();
+    const [inventory, setInventory] = useState<InventoryItem[]>([]);
+    const [searchTerm, setSearchTerm] = useState("");
+
+    useEffect(() => {
+        const fetchInventory = async () => {
+            try {
+                const res = await axios.get('http://localhost:5000/api/inventory');
+                setInventory(res.data);
+            } catch (err) {
+                console.error("Database Connection Error:", err);
+            }
+        };
+        fetchInventory();
+    }, []);
+
+    const handleLogout = () => {
+        localStorage.removeItem('token');
+        navigate('/login');
+    };
+
+    const filteredItems = inventory.filter(item =>
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.sku.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const lowStockCount = inventory.filter(item => item.quantity < 5).length;
+    const totalUnits = inventory.reduce((sum, item) => sum + item.quantity, 0);
+
+    return (
+        <div className="flex h-screen bg-slate-950 text-slate-50 font-sans selection:bg-blue-500/30">
+            {/* Sidebar */}
+            <aside className="w-64 bg-slate-900/50 border-r border-slate-800 p-6 flex flex-col backdrop-blur-xl">
+                <div className="flex items-center gap-3 mb-10 px-2">
+                    <div className="bg-blue-600 p-2 rounded-lg shadow-lg shadow-blue-500/20">
+                        <Activity size={20} className="text-white" />
+                    </div>
+                    <span className="text-xl font-bold tracking-tighter">ApexFlow</span>
+                </div>
+
+                <nav className="flex-1 space-y-1">
+                    <SidebarLink icon={<LayoutDashboard size={18} />} label="Overview" active />
+                    <SidebarLink icon={<Package size={18} />} label="Inventory" />
+                    <SidebarLink icon={<Database size={18} />} label="Database" />
+                    <SidebarLink icon={<Settings size={18} />} label="Settings" />
+                </nav>
+
+                <button
+                    onClick={handleLogout}
+                    className="mt-auto flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-red-400 hover:bg-red-500/5 rounded-xl transition-all duration-200"
+                >
+                    <LogOut size={18} />
+                    <span className="font-medium text-sm">Terminate Session</span>
+                </button>
+            </aside>
+
+            {/* Main Content */}
+            <main className="flex-1 p-10 overflow-y-auto bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-blue-900/10 via-slate-950 to-slate-950">
+                <header className="flex justify-between items-end mb-12">
+                    <div>
+                        <h1 className="text-4xl font-black tracking-tight mb-2">Command Center</h1>
+                        <div className="flex items-center gap-2">
+                            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <p className="text-slate-400 text-sm font-medium uppercase tracking-widest">PostgreSQL Cluster: Synced</p>
+                        </div>
+                    </div>
+                </header>
+
+                {/* Analytics Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                    <StatCard title="Global Inventory" value={inventory.length} icon={<Package className="text-blue-400" />} />
+                    <StatCard title="Critical Alerts" value={lowStockCount} icon={<AlertTriangle className="text-red-400" />} highlight={lowStockCount > 0} />
+                    <StatCard title="Total Capacity" value={totalUnits} icon={<Database className="text-emerald-400" />} />
+                </div>
+
+                {/* Search */}
+                <div className="relative mb-8 group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors" size={20} />
+                    <input
+                        type="text"
+                        placeholder="Scan by Serial Number or Product Name..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all backdrop-blur-sm"
+                    />
+                </div>
+
+                {/* Data Table */}
+                <div className="bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-md">
+                    <table className="w-full text-left">
+                        <thead className="bg-slate-800/40 text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">
+                            <tr>
+                                <th className="px-8 py-5">Serial / SKU</th>
+                                <th className="px-8 py-5">Product Identifier</th>
+                                <th className="px-8 py-5">Volume</th>
+                                <th className="px-8 py-5 text-right">Health Status</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/50">
+                            {filteredItems.map(item => (
+                                <tr key={item.id} className={`group transition-all hover:bg-blue-500/[0.03] ${item.quantity < 5 ? 'bg-red-500/[0.02]' : ''}`}>
+                                    <td className="px-8 py-5 font-mono text-blue-400 text-sm tracking-tighter">{item.sku}</td>
+                                    <td className="px-8 py-5 font-bold text-slate-200">
+                                        {item.name}
+                                        {item.quantity < 5 && <span className="ml-3 text-[9px] bg-red-600 text-white px-2 py-0.5 rounded-full font-black animate-pulse shadow-lg shadow-red-500/20">LOW STOCK</span>}
+                                    </td>
+                                    <td className={`px-8 py-5 font-mono ${item.quantity < 5 ? 'text-red-400 font-black' : 'text-slate-400'}`}>
+                                        {item.quantity.toString().padStart(3, '0')} Units
+                                    </td>
+                                    <td className="px-8 py-5 text-right">
+                                        <span className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tighter border ${item.quantity < 5
+                                                ? 'bg-red-500/10 text-red-500 border-red-500/20'
+                                                : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                                            }`}>
+                                            {item.quantity < 5 ? 'Reorder Immediate' : 'Operational'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {filteredItems.length === 0 && (
+                        <div className="p-24 text-center">
+                            <Package className="mx-auto text-slate-800 mb-4" size={48} />
+                            <p className="text-slate-500 font-medium italic">No assets detected matching your query.</p>
+                        </div>
+                    )}
+                </div>
+            </main>
+        </div>
+    );
+}
+
+function SidebarLink({ icon, label, active = false }: { icon: any, label: string, active?: boolean }) {
+    return (
+        <div className={`flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all duration-200 group ${active ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:bg-slate-800 hover:text-slate-200'
+            }`}>
+            {icon}
+            <span className="text-sm font-semibold">{label}</span>
+        </div>
+    );
+}
+
+function StatCard({ title, value, icon, highlight = false }: { title: string, value: any, icon: any, highlight?: boolean }) {
+    return (
+        <div className={`p-8 rounded-3xl border transition-all duration-500 group relative overflow-hidden ${highlight
+                ? 'bg-red-900/10 border-red-500/30 shadow-[0_0_40px_rgba(239,68,68,0.05)]'
+                : 'bg-slate-900/50 border-slate-800 hover:border-slate-700 backdrop-blur-sm'
+            }`}>
+            <div className="flex justify-between items-start mb-6">
+                <span className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">{title}</span>
+                <div className="p-3 bg-slate-800/80 rounded-2xl group-hover:scale-110 transition-transform duration-300">{icon}</div>
+            </div>
+            <p className="text-5xl font-black tracking-tighter tabular-nums">{value}</p>
+        </div>
+    );
+}

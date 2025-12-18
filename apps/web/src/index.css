@@ -1,0 +1,12 @@
+@import "tailwindcss";
+/* The new v4 way to import */
+
+/* Add this to ensure your background is deep black immediately */
+@theme {
+  --color-slate-950: #020617;
+}
+
+:root {
+  background-color: #020617;
+  color: white;
+}

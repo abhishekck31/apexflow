@@ -1,0 +1,33 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+  importFileExtension = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Role {
+  id          String @id @default(uuid())
+  name        String @unique
+  permissions Json
+  users       User[]
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password_hash String
+  roleId        String
+  role          Role     @relation(fields: [roleId], references: [id])
+  createdAt     DateTime @default(now())
+}
+model Inventory {
+  id        String   @id @default(uuid())
+  sku       String   @unique
+  name      String
+  quantity  Int      @default(0)
+  status    String   // e.g., "In Stock", "Low Stock", "Out of Stock"
+  createdAt DateTime @default(now())
+}
