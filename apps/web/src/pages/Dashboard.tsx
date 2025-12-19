@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
     Search, AlertTriangle, Package, Database,
-    LogOut, LayoutDashboard, Settings, Activity, PackagePlus
+    LogOut, LayoutDashboard, Settings, Activity, PackagePlus,
+    Minus, Plus, Trash2
 } from 'lucide-react';
 import SidebarLink from '../components/SidebarLink';
 import StatCard from '../components/StatCard';
@@ -43,6 +44,25 @@ export default function Dashboard() {
     const handleLogout = () => {
         localStorage.removeItem('token');
         navigate('/login');
+    };
+
+    const handleAdjust = async (id: string, amount: number) => {
+        try {
+            await axios.patch(`${API_URL}/api/inventory/${id}/adjust`, { amount });
+            fetchInventory(); // Refresh data
+        } catch (err) {
+            console.error("Adjustment failed", err);
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!window.confirm("Are you sure you want to decommission this asset?")) return;
+        try {
+            await axios.delete(`${API_URL}/api/inventory/${id}`);
+            fetchInventory(); // Refresh data
+        } catch (err) {
+            alert("Authorization failed: Only Admins can delete assets.");
+        }
     };
 
     const filteredItems = inventory.filter(item =>
@@ -135,7 +155,7 @@ export default function Dashboard() {
                                 <th className="px-8 py-5">Serial / SKU</th>
                                 <th className="px-8 py-5">Product Identifier</th>
                                 <th className="px-8 py-5">Volume</th>
-                                <th className="px-8 py-5 text-right">Health Status</th>
+                                <th className="px-8 py-5 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800/50">
@@ -146,16 +166,35 @@ export default function Dashboard() {
                                         {item.name}
                                         {item.quantity < 5 && <span className="ml-3 text-[9px] bg-red-600 text-white px-2 py-0.5 rounded-full font-black animate-pulse shadow-lg shadow-red-500/20">LOW STOCK</span>}
                                     </td>
-                                    <td className={`px-8 py-5 font-mono ${item.quantity < 5 ? 'text-red-400 font-black' : 'text-slate-400'}`}>
-                                        {item.quantity.toString().padStart(3, '0')} Units
+                                    <td className="px-8 py-5">
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={() => handleAdjust(item.id, -1)}
+                                                className="p-1 hover:bg-slate-800 rounded border border-slate-700 text-slate-400 hover:text-white transition-all"
+                                            >
+                                                <Minus size={14} />
+                                            </button>
+                                            <span className={`font-mono w-12 text-center ${item.quantity < 5 ? 'text-red-400 font-black' : 'text-slate-400'}`}>
+                                                {item.quantity.toString().padStart(3, '0')}
+                                            </span>
+                                            <button
+                                                onClick={() => handleAdjust(item.id, 1)}
+                                                className="p-1 hover:bg-slate-800 rounded border border-slate-700 text-slate-400 hover:text-white transition-all"
+                                            >
+                                                <Plus size={14} />
+                                            </button>
+                                        </div>
                                     </td>
                                     <td className="px-8 py-5 text-right">
-                                        <span className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tighter border ${item.quantity < 5
-                                            ? 'bg-red-500/10 text-red-500 border-red-500/20'
-                                            : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                                            }`}>
-                                            {item.quantity < 5 ? 'Reorder Immediate' : 'Operational'}
-                                        </span>
+                                        <div className="flex justify-end gap-2">
+                                            <button
+                                                onClick={() => handleDelete(item.id)}
+                                                className="p-2 hover:bg-red-500/10 text-slate-600 hover:text-red-500 rounded-lg transition-all"
+                                                title="Decommission Asset"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

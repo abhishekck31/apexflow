@@ -64,5 +64,30 @@ router.patch('/:id/quantity', async (req, res) => {
         res.status(400).json({ error: "Failed to update quantity. Ensure ID is valid." });
     }
 });
+// 1. Delete an Asset
+router.delete('/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await prisma.inventory.delete({ where: { id } });
+        res.json({ message: "Asset successfully decommissioned." });
+    } catch (error) {
+        res.status(404).json({ error: "Asset not found or already deleted." });
+    }
+});
+
+// 2. Adjust Quantity (Plus/Minus)
+router.patch('/:id/adjust', async (req, res) => {
+    const { id } = req.params;
+    const { amount } = req.body; // Expecting +1 or -1
+    try {
+        const item = await prisma.inventory.update({
+            where: { id },
+            data: { quantity: { increment: amount } }
+        });
+        res.json(item);
+    } catch (error) {
+        res.status(400).json({ error: "Inventory adjustment failed." });
+    }
+});
 
 export default router;
