@@ -1,5 +1,5 @@
 // apps/server/prisma/seed.ts
-import { PrismaClient } from '../src/generated/client/index.js';
+import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 import bcrypt from 'bcrypt';
@@ -15,48 +15,45 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-    console.log('🚀 Seeding Enterprise Roles...');
+    console.log('🚀 Seeding Database...');
 
-    // 1. Create Roles (Standard for Salesforce/Airbus architecture)
-    const adminRole = await prisma.role.upsert({
-        where: { name: 'Admin' },
-        update: {},
-        create: {
-            name: 'Admin',
-            permissions: { all: true, delete: true },
-        },
-    });
-
-    const managerRole = await prisma.role.upsert({
-        where: { name: 'Manager' },
-        update: {},
-        create: {
-            name: 'Manager',
-            permissions: { edit: true, view: true },
-        },
-    });
-
-    // 2. Create a Default Admin User
-    const hashedPassword = await bcrypt.hash('admin123', 10);
+    // 1. Create a Default Admin User
+    const hashedAdminPassword = await bcrypt.hash('admin123', 10);
 
     await prisma.user.upsert({
         where: { email: 'admin@apexflow.com' },
         update: {},
         create: {
             email: 'admin@apexflow.com',
-            password_hash: hashedPassword,
-            roleId: adminRole.id,
+            password: hashedAdminPassword,
+            role: 'ADMIN',
         },
     });
 
+    console.log('👤 Admin User Seeded.');
+
+    // 2. Create a Default Staff User
+    const hashedStaffPassword = await bcrypt.hash('staff123', 10);
+
+    await prisma.user.upsert({
+        where: { email: 'staff@apexflow.com' },
+        update: {},
+        create: {
+            email: 'staff@apexflow.com',
+            password: hashedStaffPassword,
+            role: 'STAFF',
+        },
+    });
+
+    console.log('👥 Staff User Seeded.');
 
     console.log('📦 Seeding Inventory...');
 
     const products = [
-        { sku: 'APX-001', name: 'Hydraulic Pump X1', quantity: 45, status: 'In Stock' },
-        { sku: 'APX-002', name: 'Industrial Sensor S4', quantity: 12, status: 'Low Stock' },
-        { sku: 'APX-003', name: 'Control Valve v9', quantity: 0, status: 'Out of Stock' },
-        { sku: 'APX-004', name: 'Fiber Optic Cable 50m', quantity: 89, status: 'In Stock' },
+        { sku: 'APX-001', name: 'Hydraulic Pump X1', quantity: 45, status: 'OPTIMAL' },
+        { sku: 'APX-002', name: 'Industrial Sensor S4', quantity: 12, status: 'LOW STOCK' },
+        { sku: 'APX-003', name: 'Control Valve v9', quantity: 0, status: 'OUT OF STOCK' },
+        { sku: 'APX-004', name: 'Fiber Optic Cable 50m', quantity: 89, status: 'OPTIMAL' },
     ];
 
     for (const item of products) {
@@ -68,10 +65,15 @@ async function main() {
     }
 
     console.log('✅ Inventory Seeded.');
-
     console.log('✅ Database Seeded: You can now log in with admin@apexflow.com / admin123');
 }
 
 main()
-    .catch((e) => console.error(e))
-    .finally(async () => await prisma.$disconnect());
+    .catch((e) => {
+        console.error(e);
+        process.exit(1);
+    })
+    .finally(async () => {
+        await prisma.$disconnect();
+        await pool.end();
+    });

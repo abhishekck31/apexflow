@@ -1,10 +1,21 @@
+import * as dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
-import * as dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
 import inventoryRoutes from './routes/inventory.routes.js';
 
-dotenv.config();
+import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import pg from 'pg';
+
+const connectionString = process.env.DATABASE_URL;
+const pool = new pg.Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+
+// Initialize with the adapter as required by Prisma 7
+export const prisma = new PrismaClient({ adapter });
 
 const app = express();
 

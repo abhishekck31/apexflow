@@ -4,28 +4,35 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  // url = env("DATABASE_URL")
 }
 
-model Role {
-  id          String @id @default(uuid())
-  name        String @unique
-  permissions Json
-  users       User[]
+enum Role {
+  ADMIN
+  STAFF
 }
 
 model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  password_hash String
-  roleId        String
-  role          Role     @relation(fields: [roleId], references: [id])
-  createdAt     DateTime @default(now())
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(STAFF)
+  createdAt DateTime @default(now())
 }
+
 model Inventory {
   id        String   @id @default(uuid())
   sku       String   @unique
   name      String
   quantity  Int      @default(0)
-  status    String   // e.g., "In Stock", "Low Stock", "Out of Stock"
+  status    String   @default("OPTIMAL")
   createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String   // e.g., "CREATE_ASSET", "ADJUST_STOCK"
+  details   String   // e.g., "Added SKU: APX-98562"
+  userEmail String
+  timestamp DateTime @default(now())
 }

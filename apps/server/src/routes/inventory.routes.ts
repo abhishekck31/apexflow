@@ -2,6 +2,9 @@ import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
+import { isAdmin } from '../middleware/role.middleware.js';
+import { authenticateToken } from '../middleware/auth.middleware.js';
+
 
 const router = Router();
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -15,35 +18,33 @@ router.get('/', async (req, res) => {
 // Add this to your existing inventory.routes.ts
 
 router.post('/', async (req, res) => {
-    const { sku, name, quantity, status } = req.body;
+    const { sku, name, quantity } = req.body;
+
+    // Validation: Ensure data types match Prisma expectations
+    if (!sku || !name) {
+        return res.status(400).json({ error: "SKU and Name are required for registration." });
+    }
 
     try {
-        // 1. Enterprise Validation: Prevent duplicate SKUs
-        const existingItem = await prisma.inventory.findUnique({
-            where: { sku }
-        });
-
-        if (existingItem) {
-            return res.status(400).json({ error: "SKU already exists in the system." });
-        }
-
-        // 2. Create the new asset
         const newItem = await prisma.inventory.create({
             data: {
-                sku,
-                name,
-                quantity: parseInt(quantity) || 0,
-                status: status || "OPTIMAL"
+                sku: sku.trim().toUpperCase(),
+                name: name.trim(),
+                quantity: Number(quantity) || 0,
+                status: Number(quantity) < 5 ? "LOW STOCK" : "OPTIMAL" // Auto-status logic
             }
         });
 
         res.status(201).json(newItem);
-    } catch (error) {
-        console.error("Create Inventory Error:", error);
-        res.status(500).json({ error: "Internal Server Error during asset creation." });
+    } catch (error: any) {
+        console.error("Creation Error:", error);
+        // Handle unique constraint violation for SKU
+        if (error.code === 'P2002') {
+            return res.status(400).json({ error: "SKU Conflict: This identifier is already registered." });
+        }
+        res.status(500).json({ error: "Database rejection. Check server logs." });
     }
 });
-
 // apps/server/src/routes/inventory.routes.ts
 
 router.patch('/:id/quantity', async (req, res) => {
@@ -65,7 +66,7 @@ router.patch('/:id/quantity', async (req, res) => {
     }
 });
 // 1. Delete an Asset
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticateToken, isAdmin, async (req, res) => {
     const { id } = req.params;
     try {
         await prisma.inventory.delete({ where: { id } });
